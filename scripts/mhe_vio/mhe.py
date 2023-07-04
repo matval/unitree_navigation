@@ -51,7 +51,6 @@ class MHE_ESTIMATOR:
         # state symbolic variables
         x       = ca.SX.sym('x', 3)
         theta   = ca.SX.sym('theta', 3)
-        states  = ca.vertcat(x, theta)
 
         # control symbolic variables
         controls = ca.SX.sym('u', 2)
@@ -76,6 +75,7 @@ class MHE_ESTIMATOR:
 
         RHS = ca.vertcat(Jx, Jtheta)
 
+        states  = ca.vertcat(x, theta)
         # maps controls from [v, omega].T to [x, theta].T
         self.x_dot = ca.Function('f', [states, controls, mu, nu], [RHS])
 
@@ -231,9 +231,9 @@ class MHE_ESTIMATOR:
         p.extend([temp[0,1],                # previous x
                   temp[1,1],                # previous y
                   temp[2,1],                # previous z
-                  ca.mod(temp[3,1] + ca.pi, 2*ca.pi) - ca.pi,   # previous roll
-                  ca.mod(temp[4,1] + ca.pi, 2*ca.pi) - ca.pi,   # previous pitch
-                  ca.mod(temp[5,1] + ca.pi, 2*ca.pi) - ca.pi,   # previous yaw
+                  ca.fmod(temp[3,1] + ca.pi, 2*ca.pi) - ca.pi,   # previous roll
+                  ca.fmod(temp[4,1] + ca.pi, 2*ca.pi) - ca.pi,   # previous pitch
+                  ca.fmod(temp[5,1] + ca.pi, 2*ca.pi) - ca.pi,   # previous yaw
                 #   temp[3,1],                # previous roll
                 #   temp[4,1],                # previous pitch
                 #   temp[5,1],                # previous yaw
@@ -242,7 +242,7 @@ class MHE_ESTIMATOR:
                   self.previous_sol[-3],    # previous x_off
                   self.previous_sol[-2],    # previous y_off
                 #   self.previous_sol[-1]])   # previous theta_off
-                  ca.mod(self.previous_sol[-1] + ca.pi, 2*ca.pi) - ca.pi])   # previous theta_off
+                  ca.fmod(self.previous_sol[-1] + ca.pi, 2*ca.pi) - ca.pi])   # previous theta_off
 
         p = ca.DM(p)
 

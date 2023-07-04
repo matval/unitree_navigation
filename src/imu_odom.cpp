@@ -2,9 +2,11 @@
 // Code from: https://github.com/aatb-ch/go1_republisher
 
 #include <ros/ros.h>
+#include <ros/console.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#include <tf/transform_broadcaster.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include "unitree_legged_sdk/unitree_legged_sdk.h"
 #include <chrono>
 #include <pthread.h>
@@ -20,30 +22,33 @@ class Custom
 
 	public:
 		Custom():
-		high_udp(8090, "192.168.123.161", 8082, sizeof(HighCmd), sizeof(HighState))
-		{
-			high_udp.InitCmdData(high_cmd);
-		}
+			high_udp(8090, "192.168.123.161", 8082, sizeof(HighCmd), sizeof(HighState))
+			{
+				high_udp.InitCmdData(high_cmd);
+			}
 
-	void highUdpSend()
-	{
-		// printf("high udp send is running\n");
+			void highUdpSend()
+			{
+				// printf("high udp send is running\n");
 
-		high_udp.SetSend(high_cmd);
-		high_udp.Send();
-	}
+				high_udp.SetSend(high_cmd);
+				high_udp.Send();
+			}
 
-	void highUdpRecv()
-	{
-		high_udp.Recv();
-		high_udp.GetRecv(high_state);
-		// printf("%i", high_state.gaitType);
-	}
+			void highUdpRecv()
+			{
+				int status = high_udp.Recv();
+				high_udp.GetRecv(high_state);
+
+				// printf("high udp recv is running %d\n", status);
+				// printf("%i", high_state.gaitType);
+			}
 };
 
 Custom custom;
 ros::Publisher pub_imu;
 ros::Publisher pub_odom;
+ros::Publisher pub_cmd;
 
 long high_count = 0;
 
@@ -53,7 +58,8 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh;
 	pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
 	pub_odom = nh.advertise<nav_msgs::Odometry>("odom", 1);
-	tf::TransformBroadcaster odom_broadcaster;
+	pub_cmd = nh.advertise<geometry_msgs::TwistStamped>("motion_command", 1);
+	static tf2_ros::TransformBroadcaster br;
 
 	LoopFunc loop_udpSend("high_udp_send", 0.002, 3, boost::bind(&Custom::highUdpSend, &custom));
 	LoopFunc loop_udpRecv("high_udp_recv", 0.002, 3, boost::bind(&Custom::highUdpRecv, &custom));
@@ -67,6 +73,12 @@ int main(int argc, char **argv)
 
 	while (ros::ok())
 	{
+		if(custom.high_udp.udpState.RecvCount <= 0)
+		{
+			ROS_WARN("UDP not connected to the robot!");
+			continue;
+		}
+
 		ros::Time current_time;
 
 		current_time = ros::Time::now();
@@ -114,6 +126,18 @@ int main(int argc, char **argv)
 
 		pub_odom.publish(msg_odom);
 
+		geometry_msgs::TwistStamped msg_cmd;
+
+		msg_cmd.header.seq = count;
+		msg_cmd.header.stamp = current_time;
+		msg_cmd.header.frame_id = "base_link";
+
+		msg_cmd.twist.linear.x = custom.high_state.velocity[0];
+		msg_cmd.twist.linear.y = custom.high_state.velocity[1];
+		msg_cmd.twist.angular.z = custom.high_state.velocity[2];
+
+		pub_cmd.publish(msg_cmd);
+
 		//first, we'll publish the transform over tf
 		geometry_msgs::TransformStamped odom_trans;
 		odom_trans.header.stamp = current_time;
@@ -129,7 +153,7 @@ int main(int argc, char **argv)
 		odom_trans.transform.rotation.z = custom.high_state.imu.quaternion[3];
 
 		//send the transform
-		odom_broadcaster.sendTransform(odom_trans);
+		br.sendTransform(odom_trans);
 
 		ros::spinOnce();
 
