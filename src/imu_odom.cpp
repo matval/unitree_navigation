@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 
 		msg_odom.twist.twist.linear.x = custom.high_state.velocity[0];
 		msg_odom.twist.twist.linear.y = custom.high_state.velocity[1];
-		msg_odom.twist.twist.angular.z = custom.high_state.velocity[2];
+		msg_odom.twist.twist.angular.z = custom.high_state.yawSpeed;
 
 		pub_odom.publish(msg_odom);
 
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 
 		msg_cmd.twist.linear.x = custom.high_state.velocity[0];
 		msg_cmd.twist.linear.y = custom.high_state.velocity[1];
-		msg_cmd.twist.angular.z = custom.high_state.velocity[2];
+		msg_cmd.twist.angular.z = custom.high_state.yawSpeed;
 
 		pub_cmd.publish(msg_cmd);
 

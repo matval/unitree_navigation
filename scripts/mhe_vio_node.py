@@ -21,7 +21,7 @@ class MHE_NODE:
         # mhe_configs['Pv']   = np.diag([1, 1, 1, 1, 1, 1])
         mhe_configs['Pvio'] = np.diag([1, 1, 1, 1, 1, 1])
         mhe_configs['Pgps'] = np.diag([1, 1])
-        mhe_configs['min_acc'] = 5.0
+        mhe_configs['min_acc'] = 10.0
 
         # Set GPS antenna offset
         mhe_configs['d_gps_x'] =  0.0       # GPS offset in the X axis
