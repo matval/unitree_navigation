@@ -49,13 +49,43 @@ Custom custom;
 ros::Publisher pub_imu;
 ros::Publisher pub_odom;
 ros::Publisher pub_cmd;
+ros::Subscriber sub_cmd_vel;
 
-long high_count = 0;
+void cmdCallback(const geometry_msgs::TwistStamped::ConstPtr &msg)
+{
+    UNITREE_LEGGED_SDK::HighCmd cmd;
+
+    custom.high_cmd.head[0] = 0xFE;
+    custom.high_cmd.head[1] = 0xEF;
+    custom.high_cmd.levelFlag = UNITREE_LEGGED_SDK::HIGHLEVEL;
+    custom.high_cmd.mode = 0;
+    custom.high_cmd.speedLevel = 0;
+    custom.high_cmd.footRaiseHeight = 0;
+    custom.high_cmd.bodyHeight = 0;
+    custom.high_cmd.euler[0] = 0;
+    custom.high_cmd.euler[1] = 0;
+    custom.high_cmd.euler[2] = 0;
+    custom.high_cmd.reserve = 0;
+	// Commands
+    custom.high_cmd.velocity[0] = msg->twist.linear.x;
+    custom.high_cmd.velocity[1] = msg->twist.linear.y;
+    custom.high_cmd.yawSpeed = msg->twist.angular.z;
+	// Gaits
+    custom.high_cmd.mode = 2;
+    custom.high_cmd.gaitType = 1;
+
+    printf("cmd_x_vel = %f\n", custom.high_cmd.velocity[0]);
+    printf("cmd_y_vel = %f\n", custom.high_cmd.velocity[1]);
+    printf("cmd_yaw_vel = %f\n", custom.high_cmd.yawSpeed);
+}
 
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "go1_imu");
 	ros::NodeHandle nh;
+	// Subscriber
+	sub_cmd_vel = nh.subscribe("cmd_vel", 1, cmdCallback);
+	//  Publishers
 	pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
 	pub_odom = nh.advertise<nav_msgs::Odometry>("odom", 1);
 	pub_cmd = nh.advertise<geometry_msgs::TwistStamped>("motion_command", 1);

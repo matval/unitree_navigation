@@ -20,13 +20,13 @@ class MHE_NODE:
         mhe_configs['Pp']   = np.diag([1, 1, 1, 1, 1])
         # mhe_configs['Pv']   = np.diag([1, 1, 1, 1, 1, 1])
         mhe_configs['Pvio'] = np.diag([1, 1, 1, 1, 1, 1])
-        mhe_configs['Pgps'] = np.diag([1, 1])
+        mhe_configs['Pgps'] = np.diag([5, 5])
         mhe_configs['min_acc'] = 10.0
 
         # Set GPS antenna offset
-        mhe_configs['d_gps_x'] =  0.0       # GPS offset in the X axis
+        mhe_configs['d_gps_x'] = -0.2       # GPS offset in the X axis
         mhe_configs['d_gps_y'] =  0.0       # GPS offset in the Y axis
-        mhe_configs['d_gps_z'] =  0.215     # GPS offset in the Z axis
+        mhe_configs['d_gps_z'] =  0.265     # GPS offset in the Z axis
 
         # Create MHE object
         mhe = MHE_ESTIMATOR(mhe_configs)
@@ -130,6 +130,8 @@ class MHE_NODE:
                 data_to_send.nu = nu
                 data_to_send.delta_heading = theta_off
                 data_to_send.gps_accuracy = self.gps_accuracy
+                data_to_send.zero_latitude = self.first_lat
+                data_to_send.zero_longitude = self.first_lon
                 data_to_send.pose = mhe_odom.pose.pose
                 data_to_send.twist = mhe_odom.twist.twist
                 self.pub.publish(data_to_send)
