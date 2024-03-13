@@ -49,14 +49,12 @@ class MHE_NODE:
         self.cmd_data       = [0.0, 0.0]
         self.gps_data       = [0.0, 0.0]
         self.odom_data      = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.gps_accuracy   = 10.0
+        self.gps_accuracy   = 15.0
         self.gps_new_data   = False
 
         # Initialize with unknown GPS position
         self.first_lat = -1.0
         self.first_lon = -1.0
-        self.init_x = -1.0
-        self.init_y = -1.0
         self.init_z = -1.0
 
         # Create dictionaries to organize the data
@@ -130,8 +128,8 @@ class MHE_NODE:
                 data_to_send.nu = nu
                 data_to_send.delta_heading = theta_off
                 data_to_send.gps_accuracy = self.gps_accuracy
-                data_to_send.zero_latitude = self.first_lat
-                data_to_send.zero_longitude = self.first_lon
+                data_to_send.zero_lat = self.first_lat
+                data_to_send.zero_lon = self.first_lon
                 data_to_send.pose = mhe_odom.pose.pose
                 data_to_send.twist = mhe_odom.twist.twist
                 self.pub.publish(data_to_send)
@@ -170,16 +168,14 @@ class MHE_NODE:
             
             gps_x, gps_y = dlatlon2dxy(self.first_lat, self.first_lon, lat, lon)
 
-            if (self.init_x == -1.0 and self.init_y == -1.0):
-                self.init_x = gps_x
-                self.init_y = gps_y
+            if (self.init_z == -1.0):
                 self.init_z = alt
 
             gps_point = PointStamped()
             gps_point.header.stamp = rospy.Time.now()
             gps_point.header.frame_id = 'map'
-            gps_point.point.x = gps_x + self.init_x
-            gps_point.point.y = gps_y + self.init_y
+            gps_point.point.x = gps_x
+            gps_point.point.y = gps_y
             gps_point.point.z = alt - self.init_z
 
             self.pub_point.publish(gps_point)
