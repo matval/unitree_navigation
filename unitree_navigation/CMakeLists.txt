@@ -35,6 +35,6 @@ include_directories(
     ${unitree_legged_sdk_INCLUDE_DIRS}
 )
 
-add_executable(imu_odom src/imu_odom.cpp)
-target_link_libraries(imu_odom ${EXTRA_LIBS} ${catkin_LIBRARIES})
-add_dependencies(imu_odom ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(unitree_state_control src/unitree_state_control.cpp)
+target_link_libraries(unitree_state_control ${EXTRA_LIBS} ${catkin_LIBRARIES})
+add_dependencies(unitree_state_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

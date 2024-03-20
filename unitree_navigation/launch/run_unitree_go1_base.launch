@@ -1,0 +1,55 @@
+<launch>
+    <!-- Params -->
+    <arg name="pointcloud_topic" value="/unitree/velodyne_points" />
+    <arg name="imu_topic"        value="/unitree/imu" />
+
+	<group ns="unitree">
+        <!-- Launch multi camera transformations -->
+        <include file="$(find unitree_navigation)/launch/unitree_go1_tfs.launch" />
+
+		<!-- Set robot cameras from the other Jetson devices -->
+		<node pkg="unitree_navigation" type="run_robot_cams.sh" name="run_robot_cams" output="screen"/>
+
+		<!-- Launch Unitree Go1 state_control node -->
+        <node pkg="unitree_navigation" type="unitree_state_control" name="unitree_state_control" output="screen" required="true"/>
+
+        <!-- Launch Unitree Go1 rosbag record trigger node -->
+        <node pkg="unitree_navigation" type="bag_record_trigger.py" name="bag_record_trigger" output="screen" required="true"/>
+
+        <!-- Launch GPS -->
+        <node pkg="nmea_navsat_driver" type="nmea_serial_driver" name="gps_node" output="screen" required="true">
+            <param name="port" value="/dev/ttyACM0"/>
+            <param name="baud" value="115200" />
+            <!-- <param name="frame_id" value="$(arg frame_id)" />
+            <param name="use_GNSS_time" value="$(arg use_GNSS_time)" />
+            <param name="time_ref_source" value="$(arg time_ref_source)" />
+            <param name="useRMC" value="$(arg useRMC)" /> -->
+        </node>
+
+        <!-- Launch Velodyne VLP-16 point cloud -->
+        <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch" />
+
+        <!-- Launch DLIO Odometry Node -->
+        <node name="dlio_odom" pkg="direct_lidar_inertial_odometry" type="dlio_odom_node" output="log" clear_params="true">
+
+            <!-- Load parameters -->
+            <rosparam file="$(find direct_lidar_inertial_odometry)/cfg/dlio.yaml" command="load"/>
+            <rosparam file="$(find direct_lidar_inertial_odometry)/cfg/params.yaml" command="load"/>
+
+            <!-- Subscriptions -->
+            <remap from="~pointcloud" to="$(arg pointcloud_topic)"/>
+            <remap from="~imu" to="$(arg imu_topic)"/>
+
+            <!-- Publications -->
+            <remap from="~odom"     to="dlio/odom_node/odom"/>
+            <remap from="~pose"     to="dlio/odom_node/pose"/>
+            <remap from="~path"     to="dlio/odom_node/path"/>
+            <remap from="~kf_pose"  to="dlio/odom_node/keyframes"/>
+            <remap from="~kf_cloud" to="dlio/odom_node/pointcloud/keyframe"/>
+            <remap from="~deskewed" to="dlio/odom_node/pointcloud/deskewed"/>
+        </node>
+
+		<!-- Launch MHE state estimation -->
+        <!-- <node pkg="unitree_navigation" type="mhe_vio_node.py" name="mhe_node" required="true" output="screen"/> -->
+	</group>
+</launch>

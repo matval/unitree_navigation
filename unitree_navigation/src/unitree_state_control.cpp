@@ -1,17 +1,22 @@
-// Credits to aatb-ch
-// Code from: https://github.com/aatb-ch/go1_republisher
+/* 	Credits to aatb-ch
+ * 	Code adapted from: https://github.com/aatb-ch/go1_republisher
+ */
+
+#include <chrono>
+#include <numeric>
+#include <pthread.h>
 
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/Twist.h>
+#include <sensor_msgs/BatteryState.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include "unitree_legged_sdk/unitree_legged_sdk.h"
-#include <chrono>
-#include <pthread.h>
 
 using namespace UNITREE_LEGGED_SDK;
+
 class Custom
 {
 	public:
@@ -29,8 +34,6 @@ class Custom
 
 			void highUdpSend()
 			{
-				// printf("high udp send is running\n");
-
 				high_udp.SetSend(high_cmd);
 				high_udp.Send();
 			}
@@ -39,19 +42,12 @@ class Custom
 			{
 				int status = high_udp.Recv();
 				high_udp.GetRecv(high_state);
-
-				// printf("high udp recv is running %d\n", status);
-				// printf("%i", high_state.gaitType);
 			}
 };
 
 Custom custom;
-ros::Publisher pub_imu;
-ros::Publisher pub_odom;
-ros::Publisher pub_cmd;
-ros::Subscriber sub_cmd_vel;
 
-void cmdCallback(const geometry_msgs::TwistStamped::ConstPtr &msg)
+void cmdCallback(const geometry_msgs::Twist::ConstPtr &msg)
 {
     UNITREE_LEGGED_SDK::HighCmd cmd;
 
@@ -67,28 +63,31 @@ void cmdCallback(const geometry_msgs::TwistStamped::ConstPtr &msg)
     custom.high_cmd.euler[2] = 0;
     custom.high_cmd.reserve = 0;
 	// Commands
-    custom.high_cmd.velocity[0] = msg->twist.linear.x;
-    custom.high_cmd.velocity[1] = msg->twist.linear.y;
-    custom.high_cmd.yawSpeed = msg->twist.angular.z;
+    custom.high_cmd.velocity[0] = msg->linear.x;
+    custom.high_cmd.velocity[1] = msg->linear.y;
+    custom.high_cmd.yawSpeed = msg->angular.z;
 	// Gaits
     custom.high_cmd.mode = 2;
     custom.high_cmd.gaitType = 1;
 
-    printf("cmd_x_vel = %f\n", custom.high_cmd.velocity[0]);
-    printf("cmd_y_vel = %f\n", custom.high_cmd.velocity[1]);
-    printf("cmd_yaw_vel = %f\n", custom.high_cmd.yawSpeed);
+    // printf("cmd_x_vel = %f\n", custom.high_cmd.velocity[0]);
+    // printf("cmd_y_vel = %f\n", custom.high_cmd.velocity[1]);
+    // printf("cmd_yaw_vel = %f\n", custom.high_cmd.yawSpeed);
 }
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "go1_imu");
+	ros::init(argc, argv, "unitree_state_control");
 	ros::NodeHandle nh;
+
 	// Subscriber
-	sub_cmd_vel = nh.subscribe("cmd_vel", 1, cmdCallback);
+	ros::Subscriber sub_cmd_vel = nh.subscribe("cmd_vel", 1, cmdCallback);
+
 	//  Publishers
-	pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
-	pub_odom = nh.advertise<nav_msgs::Odometry>("odom", 1);
-	pub_cmd = nh.advertise<geometry_msgs::TwistStamped>("motion_command", 1);
+	ros::Publisher pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
+	ros::Publisher pub_odom = nh.advertise<nav_msgs::Odometry>("odom", 1);
+	ros::Publisher battery_pub = nh.advertise<sensor_msgs::BatteryState>("battery_state", 10);
+	// pub_cmd = nh.advertise<geometry_msgs::Twist>("motion_command", 1);
 	static tf2_ros::TransformBroadcaster br;
 
 	LoopFunc loop_udpSend("high_udp_send", 0.002, 3, boost::bind(&Custom::highUdpSend, &custom));
@@ -156,17 +155,46 @@ int main(int argc, char **argv)
 
 		pub_odom.publish(msg_odom);
 
-		geometry_msgs::TwistStamped msg_cmd;
+		// geometry_msgs::TwistStamped msg_cmd;
 
-		msg_cmd.header.seq = count;
-		msg_cmd.header.stamp = current_time;
-		msg_cmd.header.frame_id = "base_link";
+		// msg_cmd.header.seq = count;
+		// msg_cmd.header.stamp = current_time;
+		// msg_cmd.header.frame_id = "base_link";
 
-		msg_cmd.twist.linear.x = custom.high_state.velocity[0];
-		msg_cmd.twist.linear.y = custom.high_state.velocity[1];
-		msg_cmd.twist.angular.z = custom.high_state.yawSpeed;
+		// msg_cmd.twist.linear.x = custom.high_state.velocity[0];
+		// msg_cmd.twist.linear.y = custom.high_state.velocity[1];
+		// msg_cmd.twist.angular.z = custom.high_state.yawSpeed;
 
-		pub_cmd.publish(msg_cmd);
+		// pub_cmd.publish(msg_cmd);
+
+		// Create a BatteryState message
+        sensor_msgs::BatteryState battery_msg;
+
+        // Populate the BatteryState message
+        battery_msg.header.stamp = ros::Time::now();
+		float total_voltage = 0.0;
+		total_voltage = accumulate(std::begin(custom.high_state.bms.cell_vol), std::end(custom.high_state.bms.cell_vol), total_voltage);
+        battery_msg.voltage = total_voltage / 1000.0; // Convert voltage from mV to V
+        battery_msg.current = float(custom.high_state.bms.current) / 1000.0; // Convert current from mA to A
+        battery_msg.charge = NAN; // No charge information, set to NaN
+        battery_msg.capacity = NAN; // No capacity information, set to NaN
+        battery_msg.design_capacity = NAN; // No design capacity, set to NaN
+        battery_msg.percentage = float(custom.high_state.bms.SOC) / 100.0; // Convert SOC from percentage
+        battery_msg.power_supply_status = sensor_msgs::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN; // Set according to your system status
+        battery_msg.power_supply_health = sensor_msgs::BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN; // Set according to your system health
+        battery_msg.power_supply_technology = sensor_msgs::BatteryState::POWER_SUPPLY_TECHNOLOGY_UNKNOWN; // Set according to your battery technology
+
+        // Assuming BQ_NTC and MCU_NTC are temperature values, average them for example
+        float average_temp = (custom.high_state.bms.BQ_NTC[0] + custom.high_state.bms.MCU_NTC[0]) / 2;
+        battery_msg.temperature = average_temp;
+		// Populate cell_voltage vector
+
+        for (auto &vol : custom.high_state.bms.cell_vol) {
+            battery_msg.cell_voltage.push_back(vol / 1000.0f); // Convert from mV to V
+        }
+
+        // Publish the BatteryState message
+        battery_pub.publish(battery_msg);
 
 		//first, we'll publish the transform over tf
 		geometry_msgs::TransformStamped odom_trans;
@@ -186,7 +214,6 @@ int main(int argc, char **argv)
 		br.sendTransform(odom_trans);
 
 		ros::spinOnce();
-
 		loop_rate.sleep();
   	}
 

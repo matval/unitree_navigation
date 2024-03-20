@@ -1,0 +1,28 @@
+<launch>
+    <arg name="bag_name" default="$(env HOME)/unitree"/>
+
+    <arg name="topics"
+        value="/tf
+               /tf_static
+               /unitree/battery_state
+               /unitree/cmd_vel
+               /unitree/dlio/odom_node/odom
+               /unitree/fix
+               /unitree/front_stereo/left_camera/camera_info
+               /unitree/front_stereo/left_camera/image_rect_color/compressed
+               /unitree/front_stereo/right_camera/camera_info
+               /unitree/front_stereo/right_camera/image_rect_color/compressed
+               /unitree/imu
+               /unitree/left_stereo/left_camera/camera_info
+               /unitree/left_stereo/left_camera/image_rect_color/compressed
+               /unitree/left_stereo/right_camera/camera_info
+               /unitree/left_stereo/right_camera/image_rect_color/compressed
+               /unitree/odom
+               /unitree/right_stereo/left_camera/camera_info
+               /unitree/right_stereo/left_camera/image_rect_color/compressed
+               /unitree/right_stereo/right_camera/camera_info
+               /unitree/right_stereo/right_camera/image_rect_color/compressed
+               /unitree/velodyne_points"/>
+    
+    <node name="rosbag_record" pkg="rosbag" type="record" args="--lz4 -o $(arg bag_name) $(arg topics)" output="log"/>
+</launch>

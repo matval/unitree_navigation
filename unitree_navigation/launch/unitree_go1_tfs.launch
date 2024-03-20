@@ -1,0 +1,28 @@
+<launch>
+    <!-- Broadcast head camera tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="camera_front_broadcaster" args="0.2785 0 0.0167 -0.05236 0 0 base_link front_camera" />
+
+    <!-- Broadcast left camera tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="camera_left_broadcaster" args="-0.054 0.082 -0.0176 1.5707963267948966 0.2618 0 base_link left_camera" />
+
+    <!-- Broadcast right camera tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="camera_right_broadcaster" args="-0.054 -0.082 -0.0176 -1.5707963267948966 0.2618 0 base_link right_camera" />
+
+    <!-- Broadcast head left camera frame tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="front_camera_left_broadcaster" args="0 0.0125 0 -1.5707963267948966 0 -1.5707963267948966 front_camera left_front_stereo_frame" />
+
+    <!-- Broadcast head right camera frame tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="front_camera_right_broadcaster" args="0 -0.0125 0 -1.5707963267948966 0 -1.5707963267948966 front_camera right_front_stereo_frame" />
+
+    <!-- Broadcast left left camera frame tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="left_camera_left_broadcaster" args="0 0.0125 0 -1.5707963267948966 0 -1.5707963267948966 left_camera left_left_stereo_frame" />
+
+    <!-- Broadcast left right camera frame tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="left_camera_right_broadcaster" args="0 -0.0125 0 -1.5707963267948966 0 -1.5707963267948966 left_camera right_left_stereo_frame" />
+
+    <!-- Broadcast right left camera frame tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="right_camera_left_broadcaster" args="0 0.0125 0 -1.5707963267948966 0 -1.5707963267948966 right_camera left_right_stereo_frame" />
+
+    <!-- Broadcast right right camera frame tf -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="right_camera_right_broadcaster" args="0 -0.0125 0 -1.5707963267948966 0 -1.5707963267948966 right_camera right_right_stereo_frame" />
+</launch>

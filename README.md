@@ -9,6 +9,13 @@ sudo apt install sshpass
 
 ## Setup
 
+### If using a serial GPS, set the permission with:
+```
+sudo adduser $USER $(stat --format="%G" /dev/ttyACM0 )
+```
+
+### To use dLIO as the state estimator
+
 clone the DLIO package
 
 In `dlio/slam`, change the extrinsics to:
