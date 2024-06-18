@@ -2,7 +2,7 @@
 
 A package with everything you need to run traversability algorithms
 
-## To use the cameras scrip, install `sshpass`:
+## To use the cameras script, install `sshpass`:
 ```
 sudo apt install sshpass
 ```
