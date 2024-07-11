@@ -12,9 +12,9 @@ class BagRecorder:
         rospy.init_node('bag_recorder_trigger')
         self.bag_process = None
         rospack = rospkg.RosPack()
-        package_path = rospack.get_path('unitree_navigation')  # Replace 'your_package_name' with the name of your package
+        package_path = rospack.get_path('unitree_navigation')
 
-        self.launch_file_path = package_path + '/launch/rosbag_record.launch'  # Construct the path to the launch file
+        self.launch_file_path = package_path + '/launch/rosbag_record.launch'
         self.subscriber = rospy.Subscriber('trigger_recording', Bool, self.callback)
         self.prev_trigger = False
 
