@@ -6,6 +6,7 @@
                /tf_static
                /unitree/battery_state
                /unitree/cmd_vel
+               /unitree/motion_command
                /unitree/dlio/odom_node/odom
                /unitree/fix
                /unitree/front_stereo/left_camera/camera_info

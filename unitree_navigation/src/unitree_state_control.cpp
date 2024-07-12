@@ -6,13 +6,19 @@
 #include <numeric>
 #include <pthread.h>
 
+// ROS includes
 #include <ros/ros.h>
 #include <ros/console.h>
+#include <std_msgs/Bool.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/BatteryState.h>
 #include <tf2_ros/transform_broadcaster.h>
+
+// SDK includes
+#include "unitree_legged_sdk/joystick.h"
 #include "unitree_legged_sdk/unitree_legged_sdk.h"
 
 using namespace UNITREE_LEGGED_SDK;
@@ -21,6 +27,8 @@ class Custom
 {
 	public:
 		UDP high_udp;
+
+		int motiontime = 0;
 
 		HighCmd high_cmd = {0};
 		HighState high_state = {0};
@@ -69,10 +77,6 @@ void cmdCallback(const geometry_msgs::Twist::ConstPtr &msg)
 	// Gaits
     custom.high_cmd.mode = 2;
     custom.high_cmd.gaitType = 1;
-
-    // printf("cmd_x_vel = %f\n", custom.high_cmd.velocity[0]);
-    // printf("cmd_y_vel = %f\n", custom.high_cmd.velocity[1]);
-    // printf("cmd_yaw_vel = %f\n", custom.high_cmd.yawSpeed);
 }
 
 int main(int argc, char **argv)
@@ -86,9 +90,10 @@ int main(int argc, char **argv)
 	//  Publishers
 	ros::Publisher pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
 	ros::Publisher pub_odom = nh.advertise<nav_msgs::Odometry>("odom", 1);
+	ros::Publisher pub_rec = nh.advertise<std_msgs::Bool>("trigger_recording", 1);
+	ros::Publisher pub_cmd = nh.advertise<geometry_msgs::TwistStamped>("motion_command", 1);
 	ros::Publisher battery_pub = nh.advertise<sensor_msgs::BatteryState>("battery_state", 10);
-	// pub_cmd = nh.advertise<geometry_msgs::Twist>("motion_command", 1);
-	static tf2_ros::TransformBroadcaster br;
+	// static tf2_ros::TransformBroadcaster br;
 
 	LoopFunc loop_udpSend("high_udp_send", 0.002, 3, boost::bind(&Custom::highUdpSend, &custom));
 	LoopFunc loop_udpRecv("high_udp_recv", 0.002, 3, boost::bind(&Custom::highUdpRecv, &custom));
@@ -108,10 +113,11 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		ros::Time current_time;
-
-		current_time = ros::Time::now();
-			
+		ros::Time current_time = ros::Time::now();
+		
+		/*
+		 * Publish IMU message
+		 */
 		sensor_msgs::Imu msg_imu;
 
 		msg_imu.header.seq = count;
@@ -133,6 +139,9 @@ int main(int argc, char **argv)
 
 		pub_imu.publish(msg_imu);
 
+		/*
+		 * Publish odometry message
+		 */
 		nav_msgs::Odometry msg_odom;
 
 		msg_odom.header.seq = count;
@@ -155,21 +164,45 @@ int main(int argc, char **argv)
 
 		pub_odom.publish(msg_odom);
 
-		// geometry_msgs::TwistStamped msg_cmd;
+		/*
+		 * Publish commanded speed
+		 */
+		geometry_msgs::TwistStamped msg_cmd;
+		// Get joystick data
+		xRockerBtnDataStruct keyData;
+		memcpy(&keyData, &custom.high_state.wirelessRemote[0], 40);
 
-		// msg_cmd.header.seq = count;
-		// msg_cmd.header.stamp = current_time;
-		// msg_cmd.header.frame_id = "base_link";
+		msg_cmd.header.seq = count;
+		msg_cmd.header.stamp = current_time;
+		msg_cmd.header.frame_id = "base_link";
 
-		// msg_cmd.twist.linear.x = custom.high_state.velocity[0];
-		// msg_cmd.twist.linear.y = custom.high_state.velocity[1];
-		// msg_cmd.twist.angular.z = custom.high_state.yawSpeed;
+		if (keyData.ly > 0) {
+			msg_cmd.twist.linear.x = 1.5*keyData.ly;
+		}
+		else {
+			msg_cmd.twist.linear.x = 1.1*keyData.ly;
+		}
+		msg_cmd.twist.linear.y = keyData.lx;
+		msg_cmd.twist.angular.z = -M_PI*keyData.rx;
 
-		// pub_cmd.publish(msg_cmd);
+		pub_cmd.publish(msg_cmd);
 
-		// Create a BatteryState message
+		/*
+		 * Publish record signal
+		 */
+		std_msgs::Bool msg_rec;
+		if (keyData.btn.components.L1 > 0 && keyData.btn.components.R1 > 0) {
+			msg_rec.data = true;
+		}
+		else {
+			msg_rec.data = false;
+		}
+		pub_rec.publish(msg_rec);
+
+		/*
+		 * Publish Battery message
+		 */
         sensor_msgs::BatteryState battery_msg;
-
         // Populate the BatteryState message
         battery_msg.header.stamp = ros::Time::now();
 		float total_voltage = 0.0;
@@ -196,22 +229,24 @@ int main(int argc, char **argv)
         // Publish the BatteryState message
         battery_pub.publish(battery_msg);
 
-		//first, we'll publish the transform over tf
-		geometry_msgs::TransformStamped odom_trans;
-		odom_trans.header.stamp = current_time;
-		odom_trans.header.frame_id = "odom";
-		odom_trans.child_frame_id = "base_link";
+		/*
+		 * Publish TF transform
+		 */
+		// geometry_msgs::TransformStamped odom_trans;
+		// odom_trans.header.stamp = current_time;
+		// odom_trans.header.frame_id = "odom";
+		// odom_trans.child_frame_id = "base_link";
 
-		odom_trans.transform.translation.x = custom.high_state.position[0];
-		odom_trans.transform.translation.y = custom.high_state.position[1];
-		odom_trans.transform.translation.z = custom.high_state.position[2];
-		odom_trans.transform.rotation.w = custom.high_state.imu.quaternion[0];
-		odom_trans.transform.rotation.x = custom.high_state.imu.quaternion[1];
-		odom_trans.transform.rotation.y = custom.high_state.imu.quaternion[2];
-		odom_trans.transform.rotation.z = custom.high_state.imu.quaternion[3];
+		// odom_trans.transform.translation.x = custom.high_state.position[0];
+		// odom_trans.transform.translation.y = custom.high_state.position[1];
+		// odom_trans.transform.translation.z = custom.high_state.position[2];
+		// odom_trans.transform.rotation.w = custom.high_state.imu.quaternion[0];
+		// odom_trans.transform.rotation.x = custom.high_state.imu.quaternion[1];
+		// odom_trans.transform.rotation.y = custom.high_state.imu.quaternion[2];
+		// odom_trans.transform.rotation.z = custom.high_state.imu.quaternion[3];
 
 		//send the transform
-		br.sendTransform(odom_trans);
+		// br.sendTransform(odom_trans);
 
 		ros::spinOnce();
 		loop_rate.sleep();
